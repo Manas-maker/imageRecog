@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Webcam Stream</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Face Recognition Webcam Stream</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <div id="output"></div>
+
+    <script>
+        const socket = io();
+
+        // Access the user's webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                // Send video frames to the server at intervals
+                const sendFrame = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const frame = canvas.toDataURL('image/jpeg', 0.7); // Convert to JPEG
+                    socket.emit('video_frame', frame.split(',')[1]); // Send only the base64 string
+                    requestAnimationFrame(sendFrame); // Continue sending frames
+                };
+
+                sendFrame(); // Start sending frames
+            })
+            .catch((error) => {
+                console.error("Error accessing webcam: ", error);
+            });
+
+        // Handle response from server
+            socket.on('response', (data) => {
+                if (data.name && data.confidence) {
+                    console.log(`Name: ${data.name}, Confidence: ${data.confidence}`);
+                    // Update your UI accordingly, e.g., display the name and confidence
+                    document.getElementById('output').innerHTML = `Person: ${data.name}, Confidence: ${data.confidence}`;
+                } else {
+                    console.log('No face detected');
+                    document.getElementById('output').innerHTML = 'No face detected';
+                }
+            });
+
+    </script>
+</body>
+</html>
